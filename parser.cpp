@@ -8,10 +8,19 @@
 #include <string>
 #include <vector>
 #include <fcntl.h>
-#include <malloc.h>
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+
+/*
+ *
+ * Mac doesn't have malloc.h readily available: https://github.com/RIOT-OS/RIOT/issues/2361
+ */
+#if defined(__MACH__)
+#include <stdlib.h>
+#else
+#include <malloc.h>
+#endif
 
 #if !defined(S_ISDIR)
     #define S_ISDIR(mode) (S_IFDIR==((mode) & S_IFMT))
@@ -598,7 +607,7 @@ static void initCallback(
 static void findBlockParent(
     Block *b
 ) {
-    auto where = lseek64(
+    auto where = lseek(
         b->chunk->getBlockFile()->fd,
         b->chunk->getOffset(),
         SEEK_SET
@@ -888,6 +897,17 @@ static void initHashtables() {
     }
 #endif
 
+#if defined(__MACH__)
+
+    static char *canonicalize_file_name(
+            const char *fileName
+            ) {
+        auto r = realpath(fileName, NULL);
+        return r;
+    }
+
+#endif
+
 #if defined(_WIN64)
     static char *canonicalize_file_name(
         const char *fileName
@@ -978,13 +998,21 @@ static void findBlockFiles() {
         }
 
         auto fileSize = statBuf.st_size;
-	#if !defined(_WIN64)
+	#if !defined(_WIN64) && !defined(__MACH__)
 	    auto r1 = posix_fadvise(fd, 0, fileSize, POSIX_FADV_NOREUSE);
 	    if(r1<0) {
 		warning(
 		    "failed to posix_fadvise on block chain file %s",
 		    fileName.c_str()
 		);
+	    }
+    #elif defined(__MACH__)
+        auto r1 = fcntl(fd, F_NOCACHE, 1);
+	    if (r1 < 0) {
+	        warning(
+	                "failed to not cache the block chain file %s",
+	                fileName.c_str()
+	                );
 	    }
 	#endif
 

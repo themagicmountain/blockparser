@@ -115,9 +115,9 @@ my($comboModes, $shortComboModes, $justifiedComboModes) = genModes(\@modeNames, 
 # Base flags
 # ===========
 my($cc) = "gcc";
-my($cplus) = "g++";
+my($cplus) = "g++ -I/usr/local/opt/openssl/include";
 my($nvcc) = "nvcc";
-my($linker) = "g++ -fno-stack-protector";
+my($linker) = "g++ -fno-stack-protector -L/usr/local/opt/openssl/lib";
 my($fortran) = "gfortran++";
 my(@inc) = qw(
     -I.
@@ -470,7 +470,7 @@ for(my($modeIndex)=0; $modeIndex<scalar(@{$comboModes}); ++$modeIndex) {
         my($v) = ($verbose ? '>/dev/null 2>/dev/null' : '');
         print Z "$targetName:$objs $aux\n";
         print Z "\t\@echo lnk $md $targetName $v\n";
-        print Z "\t$s$linker $copt -o $targetName $objs $libs \${LIBS}\n";
+        print Z "\t$s$linker $copt -o $targetName $objs $libs \${LIBS} \${LDFLAGS}\n";
         print Z "\n";
 
         # Add target to list for this mode
@@ -504,7 +504,7 @@ clean:
 realclean:clean
 	-rm -r -f ~/.ccache
 
--include .deps/*
+-include .deps/* \${CPPFLAGS}
 
 EOF
 
